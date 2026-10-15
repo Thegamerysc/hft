@@ -23,6 +23,7 @@ artifacts/
 **/__pycache__/
 .venv*/
 *.pdb
+*.verify.dll
 .vs/
 .idea/
 

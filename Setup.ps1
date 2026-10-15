@@ -56,6 +56,10 @@ if(-not(Test-Path -LiteralPath $taskActive)){
     [IO.File]::WriteAllText($taskActive,(@{directory=$taskRelease;activatedUtc=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json),(New-Object Text.UTF8Encoding($false)))
 }
 $taskBridge=Get-Content -LiteralPath $taskBridgePath -Raw|ConvertFrom-Json
+if(-not $taskBridge.dashboardPort){
+    $taskBridge | Add-Member -NotePropertyName dashboardPort -NotePropertyValue 8765 -Force
+    [IO.File]::WriteAllText($taskBridgePath,($taskBridge|ConvertTo-Json -Depth 5),(New-Object Text.UTF8Encoding($false)))
+}
 Write-Output "Setup complete. Dashboard: http://127.0.0.1:$($taskBridge.dashboardPort)/"
 Write-Output "Futures: $($taskBridge.contracts -join ', '). Verify the active dated contracts before collection."
 Write-Output 'Profiles default to SHADOW. Existing bindings and settings were preserved. Run Launch.cmd next.'

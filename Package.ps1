@@ -17,10 +17,10 @@ foreach($taskName in @('README.md','REQUIREMENTS.md','THIRD_PARTY_NOTICES.md','.
 foreach($taskDir in @('dotnet/src','dotnet/tests','dotnet/configs','dotnet/adapters','docs/portable')){
     Get-ChildItem -LiteralPath (Join-Path $taskRoot $taskDir) -File -Recurse | Where-Object {
         $taskRelative=$_.FullName.Substring($taskRoot.Length+1)
-        $taskRelative -notmatch '(^|[\\/])(bin|obj|runtime|builds)([\\/]|$)' -and $_.Extension -notin @('.log','.pdb')
+        $taskRelative -notmatch '(^|[\\/])(bin|obj|runtime|builds)([\\/]|$)' -and $_.Extension -notin @('.log','.pdb','.dll','.exe')
     } | ForEach-Object {Copy-PackageFile ($_.FullName.Substring($taskRoot.Length+1))}
 }
-foreach($taskName in @('TraderProMax.sln','Directory.Build.props','global.json','Start-CSharpLab.ps1','Stop-CSharpLab.ps1','Resolve-DotNet.ps1','Research.ps1','Install-NinjaTraderAdapter.ps1','Install-MT5Bridge.ps1','start-lab.cmd')){Copy-PackageFile ('dotnet/'+$taskName)}
+foreach($taskName in @('TraderProMax.sln','Directory.Build.props','global.json','Start-CSharpLab.ps1','Stop-CSharpLab.ps1','Resolve-DotNet.ps1','Research.ps1','Open-Dashboard.ps1','Install-NinjaTraderAdapter.ps1','Install-MT5Bridge.ps1','start-lab.cmd')){Copy-PackageFile ('dotnet/'+$taskName)}
 $taskBuild=Join-Path $taskOutput 'build'
 Push-Location (Join-Path $taskRoot 'dotnet')
 try{
