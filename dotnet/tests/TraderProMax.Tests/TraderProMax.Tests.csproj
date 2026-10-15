@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup><ItemGroup><ProjectReference Include="../../src/TraderProMax.Execution/TraderProMax.Execution.csproj" /><ProjectReference Include="../../src/TraderProMax.Recorder/TraderProMax.Recorder.csproj" /></ItemGroup></Project>

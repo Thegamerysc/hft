@@ -1,0 +1,120 @@
+@page "/"
+@implements IDisposable
+@inject MarketLink Link
+@inject ServiceSupervisor Supervisor
+
+<main class="board" aria-label="Trading demo dashboard">
+<article class="card balance-card">
+ <div class="card-head"><span class="orb blue"><Icon Name="trend" /></span><div><h2>Solde du compte</h2><small>@P.Name · @P.Market</small></div><button class="dots" @onclick="OpenBind" aria-label="Configurer le compte">···</button></div>
+ <div class="metric">@Money(P.Balance)</div><span class="pill">@P.Mode.ToUpperInvariant() · @P.Server</span><div class="micro">Flottant <b class="@(P.Floating<0?"negative":"positive")">@Money(P.Floating)</b></div>
+</article>
+<article class="card strategy-card">
+ <div class="tag-row"><span class="badge red">DÉMO UNIQUEMENT</span><span class="badge">@P.Family</span><button class="dots" @onclick="OpenBind" aria-label="Configurer le profil">···</button></div>
+ <h3>@P.Name</h3><p>SL @P.Risk points · TP @((P.Risk*P.TargetR).ToString("0.0",Invariant)) points. @P.Lots lot par jambe.</p>
+ <div class="profile-sign"><span class="avatar">@P.Family</span><div>RR 1:@P.TargetR.ToString("0.00",Invariant)<small>@P.Cap cycle(s) maximum · @P.Mode</small></div></div>
+</article>
+<article class="card gauge-card">
+ <div class="card-head"><span class="orb"><Icon Name="flag" /></span><div><h2>Cycles actifs</h2><small>Positions suivies, survivants inclus</small></div><span class="dots">···</span></div>
+ <svg class="gauge" viewBox="0 0 220 125" aria-label="@P.Active cycles actifs sur @P.Cap"><path class="track" d="M22 106a88 88 0 0 1 176 0" pathLength="100" /><path class="gauge-value" d="M22 106a88 88 0 0 1 176 0" pathLength="100" stroke-dasharray="@(P.Active*100.0/P.Cap) 100" /><circle cx="22" cy="106" r="5" fill="var(--green)" /></svg>
+ <div class="gauge-label"><strong>@P.Active <span>/ @P.Cap</span></strong><small>Capacité simultanée</small></div>
+</article>
+<article class="card chooser-card">
+ <div class="card-head"><span class="orb purple"><Icon Name="chat" /></span><div><h2>Choisir une expérience</h2><small>3 baselines + famille jointe</small></div><span class="dots">···</span></div>
+ <div class="chips">@foreach(var p in Link.View.Profiles){<button class="chip @(p.Id==selected?"selected":"")" @onclick="()=>Select(p.Id)">@p.Name</button>}</div>
+ <div class="market-choice"><button class="@(P.Market=="US500"?"selected":"")" @onclick="()=>OpenBindMarket(Asset.ES)">US500</button><button class="@(P.Market=="US100"?"selected":"")" @onclick="()=>OpenBindMarket(Asset.NQ)">US100</button></div>
+</article>
+<article class="card stats-card">
+ <div><small class="orange">Cycles terminés <Icon Name="list" /></small><strong>@P.Completed</strong><span>@(P.Family=="JD1"?"Position réglée":"Deux jambes réglées")</span></div>
+ <div><small class="purple-text">Gagnants <Icon Name="check" /></small><strong>@P.Wins</strong><span class="positive">P/L net positif</span></div>
+ <div><small class="blue-text">Perdants <Icon Name="chart" /></small><strong>@P.Losses</strong><span class="negative">P/L net négatif</span></div>
+ <div><small class="green-text">Équité <Icon Name="wallet" /></small><strong>@Money(P.Equity)</strong><span>Réalisé + flottant</span></div>
+</article>
+<article class="card win-card">
+ <div class="card-head"><span class="orb gold"><Icon Name="star" /></span><div><h2>Taux de réussite</h2><small>Cycles clôturés · net de frais</small></div><span class="dots">···</span></div>
+ <div class="metric">@(P.Completed>0?(P.Wins*100.0/P.Completed).ToString("0.0",Invariant):"—")<span class="unit">%</span></div><small>@P.Wins gagnants / @P.Completed cycles</small><div class="micro">L’espérance nette reste le critère principal.</div>
+</article>
+<article class="card source-card">
+ <div class="card-head"><span class="orb"><Icon Name="chart" /></span><div><h2>Sources du signal</h2><small>@M.Root → @P.Symbol</small></div><span class="dots">···</span></div>
+ @foreach(var source in Sources){<div class="source-row"><span class="source-dot" style="background:@source.Color"></span><span>@source.Name</span><strong>@source.State</strong></div>}
+ <small class="muted">@(P.Family=="A0"?"Volume exécuté requis; aucun modèle ML.":"L2 et calibration figée nécessaires.")</small>
+</article>
+<article class="card bars-card">
+ <div class="card-head"><span class="orb"><Icon Name="users" /></span><div><h2>Derniers cycles</h2><small>P/L net par hedge ou trade</small></div><span class="dots">···</span></div>
+ <div class="bar-chart">@foreach(var c in P.Cycles.Where(x=>x.Phase=="Closed").TakeLast(6)){<div class="bar-pair"><div class="bar @(c.Net<0?"negative-bar":"")" style="height:@(Math.Min(70,Math.Abs(c.Net)*8+4).ToString(Invariant))px"></div><span>@c.Net.ToString("0.00",Invariant)</span></div>}@if(P.Completed==0){<div class="empty-chart">Les résultats apparaîtront après les premiers cycles.</div>}</div>
+</article>
+<article class="card files-card">
+ <div class="card-head"><span class="orb"><Icon Name="file" /></span><div><h2>Données & rapports</h2><small>Enregistrements pour la recherche</small></div><span class="dots">···</span></div>
+ <a class="file-row" href="/api/export" download><span class="file-icon red">CSV</span><div>Historique des cycles<small>Fills simulés ou démo identifiés</small></div><span class="download">Exporter</span></a>
+ <div class="file-row"><span class="file-icon green">BIN</span><div>Flux brut<small>@Link.View.Recorded.ToString("N0",Invariant) événements écrits</small></div><span class="download">Local</span></div>
+</article>
+<article class="card decisions-card">
+ <div class="card-head"><span class="orb pink"><Icon Name="chat" /></span><div><h2>Décisions en direct</h2><small>Contrôles et raisons du moteur</small></div><span class="dots">···</span></div>
+ <div class="bubble">@P.Reason</div><div class="bubble purple-bubble">@LastActivity</div><div class="live-note"><span class="live-dot"></span>@(Fresh?"Flux d’état connecté":"Connexion au moteur…")</div>
+</article>
+<section class="feed-stack">
+ <article class="card feed-card"><div class="card-head"><span class="orb blue-dim"><Icon Name="cloud" /></span><div><h2>Flux @M.Root</h2><small title="@M.QualityReason">@(M.Connected?"Connecté · événements reçus":"Attente de NinjaTrader")</small></div><button class="dots" @onclick='() => Control("history")' title="Charger les 20 séances précédentes" aria-label="Charger l’historique">↻</button></div><div class="progress"><span style="width:@(M.Connected?100:0)%"></span></div><span class="progress-label">@(M.LocalMs is {} ms?ms.ToString("0.00",Invariant)+" ms local":"—")</span></article>
+ <article class="card feed-card"><div class="card-head"><span class="orb green-dim"><Icon Name="check" /></span><div><h2>Enregistrement</h2><small>@(Link.View.RecordingError??"Journal brut + décisions")</small></div><span class="dots">···</span></div><div class="progress green-progress"><span style="width:@(Link.View.RecordingDrops==0&&Fresh?100:0)%"></span></div><span class="progress-label">@Link.View.RecordingDrops perte(s)</span></article>
+</section>
+<article class="card control-card">
+ <div class="card-head"><span class="avatar teal">TP</span><div><h2>État du bot</h2><small>@P.Symbol · @P.Mode.ToUpperInvariant()</small></div><button class="dots" @onclick="OpenBind" aria-label="Lier un compte">⚙</button></div>
+ <div class="bot-state @(P.Running?"state-on":"state-off")"><span></span>@P.State.ToUpperInvariant()</div>
+ <div class="control-row"><button class="start" disabled="@busy" @onclick='() => Control("start")'><Icon Name="play" />Démarrer</button><button disabled="@busy" @onclick='() => Control("stop")'><Icon Name="stop" />Arrêter</button></div>
+ <button class="restart" disabled="@busy" @onclick='() => Control("restart")'><Icon Name="reset" />Redémarrer</button>
+</article>
+<article class="card bind-card"><span class="orb blue"><Icon Name="cloud" /></span><button class="bind-button" @onclick="OpenBind"><Icon Name="cloud" />Lier un terminal démo</button><strong>@(P.Bound?"Compte "+P.Login:"Compte non lié")</strong><small>Un compte et un terminal par expérience.</small><small class="muted">@(message.Length>0?message:"Aucun mot de passe demandé")</small></article>
+<article class="card checks-card">
+ <div class="card-head"><span class="orb pink"><Icon Name="list" /></span><div><h2>Conditions de départ</h2><small>État réel des entrées</small></div><span class="dots">···</span></div>
+ @foreach(var check in Checks){<div class="check-row"><span class="badge">@check.Label</span><span>@check.Name</span><span class="check-box @(check.Ok?"checked":"")">@(check.Ok?"✓":"")</span></div>}
+</article>
+<article class="card neural-card">
+ <div class="card-head"><span class="orb"><Icon Name="map" /></span><div><h2>Chemin de décision</h2><small>Événements → stratégie → exécution</small></div><span class="dots">···</span></div>
+ <svg class="network" viewBox="0 0 260 125"><g class="network-lines"><path d="M25 62 72 26 130 61 189 26 235 62M25 62 72 100 130 61 189 101 235 62M72 26 72 100M189 26 189 101M25 62H235" /></g>@foreach(var point in Points){<circle class="node-halo @(P.Running&&Fresh?"flowing":"")" cx="@point.X" cy="@point.Y" r="14" /><circle class="node" cx="@point.X" cy="@point.Y" r="5" />}</svg>
+ <div class="network-labels"><span>Prix</span><span>Bar</span><span>Signal</span><span>@(P.Mode=="shadow"?"Shadow":"Démo")</span></div>
+</article>
+<article class="card revenue-card">
+ <div class="card-head"><span class="orb"><Icon Name="wallet" /></span><div><h2>Profit net</h2><small>@P.Mode · cycles réalisés</small></div><span class="dots">···</span></div>
+ <div class="metric @(P.Net<0?"negative":"")">@Money(P.Net)<span class="unit">USD</span></div>
+ <svg class="equity-chart" viewBox="0 0 240 55" aria-label="Courbe du profit réalisé"><path class="equity-line" d="@EquityPath" /></svg><small>@(P.Completed>0?"Moyenne / cycle : "+Money(P.Net/P.Completed):"Résultats disponibles après clôture")</small>
+</article>
+</main>
+@if(bindOpen)
+{
+<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="bind-title"><button class="close-modal" @onclick="()=>bindOpen=false" aria-label="Fermer">×</button><h2 id="bind-title">Lier @P.Name</h2><p>Compte Exness démo dédié. Les positions existantes doivent être réconciliées.</p>
+<label>Marché<select @bind="bindMarket"><option value="ES">US500 · ES</option><option value="NQ">US100 · NQ</option></select></label>
+<label>Symbole MT5<input @bind="bindSymbol" /></label><label>Chemin du terminal64.exe<input @bind="bindPath" placeholder="C:\…\terminal64.exe" /></label>
+<div class="two-fields"><label>Numéro du compte<input type="number" @bind="bindLogin" /></label><label>Serveur<input @bind="bindServer" placeholder="Exness-MT5Trial…" /></label></div>
+<div class="two-fields"><label>Mode<select @bind="bindMode"><option value="shadow">Shadow · aucune commande broker</option><option value="demo">Exécution démo</option></select></label><label>Compte / frais<select @bind="bindType"><option value="standard">Standard · commission séparée 0</option><option value="raw">Raw Spread · commission incluse</option></select></label></div>
+@if(P.Family=="JD1"){<label class="fade-choice"><input type="checkbox" @bind="bindFade" /> Arm expérimental : sortie sur extinction du flux (1 s)</label>}
+<div class="modal-note">Après enregistrement, chargez TraderProMaxBridge.ex5 dans ce terminal et le fichier .set du profil dans dotnet/runtime/bindings. Autorisez l’adresse locale 127.0.0.1 dans MT5. Les mots de passe restent dans MT5.</div>
+<button class="bind-button" disabled="@busy" @onclick="SaveBinding">Enregistrer le compte</button><p class="feedback" role="status">@message</p></section></div>
+}
+<div class="toast @(message.Length>0?"visible":"")" role="status">@message</div>
+
+@code {
+ readonly CultureInfo Invariant=CultureInfo.InvariantCulture;string selected="a0-volume-3",message="";bool busy,bindOpen;
+ Asset bindMarket;string bindSymbol="US500m",bindPath="",bindServer="",bindMode="shadow",bindType="standard";long bindLogin;bool bindFade;
+ ProfileView Empty=>new(selected,"Volume · 3 hedges","A0","US500","US500m","shadow",false,"Stopped","Connexion au moteur…",false,false,false,3,0,0,0,0,null,null,null,0,20,1.16,.2,"",0,8901,[]);
+ ProfileView P=>Link.View.Profiles.FirstOrDefault(x=>x.Id==selected)??Empty;
+ MarketView M=>Link.View.Markets.FirstOrDefault(x=>x.Root==(P.Market=="US500"?"ES":"NQ"))??new("ES",0,0,0,false,false,0,null,null,null,null,0,0,"Historique requis");
+ bool Fresh=>Link.View.TimeNs>0&&Clock.UtcNs-Link.View.TimeNs<3_000_000_000;
+ string LastActivity=>Link.View.Activity.FirstOrDefault(x=>x.Profile==selected)?.Message??"En attente de la première décision.";
+ (string Name,string State,string Color)[] Sources=>[("Prix broker",P.BrokerConnected?"Connecté":"Attente","#4c74ff"),("Tape futures",M.Connected?"Connecté":"Attente","#ab57ff"),("Profondeur L2",M.DepthReady?M.Depth+" niveaux":"Non vérifiée","#43cb91")];
+ (string Label,string Name,bool Ok)[] Checks=>[("DÉMO","Compte vérifié",P.BrokerConnected),("DATA",P.ClockReady?"Historique prêt":"Historique incomplet",P.ClockReady),("LIVE","Flux futures frais",M.Connected)];
+ (int X,int Y)[] Points=>[(25,62),(72,26),(72,100),(130,61),(189,26),(189,101),(235,62)];
+ string Money(double? x)=>x.HasValue?"$"+x.Value.ToString("N2",Invariant):"—";
+ string EquityPath {get{var rows=P.Cycles.Where(x=>x.Phase=="Closed").TakeLast(30).ToArray();if(rows.Length==0)return "M0 35H240";double total=0;var values=new List<double>{0};foreach(var c in rows){total+=c.Net;values.Add(total);}double min=values.Min(),max=values.Max(),range=Math.Max(1,max-min);return string.Join(" ",values.Select((v,i)=>$"{(i==0?"M":"L")}{(i*240.0/(values.Count-1)).ToString("0.0",Invariant)} {(48-(v-min)/range*40).ToString("0.0",Invariant)}"));}}
+ protected override void OnInitialized(){Link.Changed+=Refresh;}
+ void Refresh()=>_=InvokeAsync(StateHasChanged);
+ public void Dispose(){Link.Changed-=Refresh;}
+ void Select(string id){selected=id;message="";}
+ void OpenBind(){var c=Supervisor.Config(selected);bindMarket=c.Asset;bindSymbol=c.Symbol;bindPath=c.TerminalPath;bindLogin=c.Login;bindServer=c.Server;bindMode=c.Execution;bindType=c.AccountType;bindFade=c.FadeExit;bindOpen=true;message="";}
+ void OpenBindMarket(Asset market){OpenBind();bindMarket=market;bindSymbol=market==Asset.ES?"US500m":"USTECm";}
+ async Task Control(string action)
+ {
+   busy=true;try{if(action=="restart"&&P.Active>0){message="Des positions sont actives. Leurs protections sont conservées; redémarrage du processus indisponible.";return;}if(action is "start" or "restart")await Supervisor.Worker(selected,action=="restart");var r=await Link.Control(action,selected);message=r.Message;}catch(Exception ex){message=ex.Message;}finally{busy=false;}
+ }
+ async Task SaveBinding()
+ {
+   busy=true;try{var cfg=Supervisor.Config(selected) with {Asset=bindMarket,Symbol=bindSymbol,TerminalPath=bindPath,Login=bindLogin,Server=bindServer,Execution=bindMode,AccountType=bindType,FadeExit=bindFade};cfg.Validate();var r=await Link.Control("bind",selected,cfg);message=r.Message;if(r.Success){Supervisor.Settings(cfg);await Supervisor.Worker(selected,true);bindOpen=false;}}catch(Exception ex){message=ex.Message;}finally{busy=false;}
+ }
+}

@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><ProjectReference Include="../TraderProMax.Contracts/TraderProMax.Contracts.csproj" /></ItemGroup></Project>

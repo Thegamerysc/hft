@@ -1,0 +1,35 @@
+# Local configuration and proprietary/user data
+dotnet/runtime/
+dotnet/builds/
+dotnet/distribution.json
+tools/
+data/
+outputs/
+GLBX-*/
+.publish/
+artifacts/
+.env
+.env.*
+*.set
+*.log
+*.dbn
+*.dbn.zst
+*.parquet
+*.jsonl
+*.jsonl.gz
+*.bin.gz
+**/bin/
+**/obj/
+**/__pycache__/
+.venv*/
+*.pdb
+.vs/
+.idea/
+
+# Earlier local-only research/application trees are outside this C# distribution
+alpha_research/
+dashboard/
+hedge_lab/
+live_a0/
+market_feed/
+research/
